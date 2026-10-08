@@ -60,7 +60,7 @@ class AutoScout24:
             "activo": d.get("status", "Active") == "Active",
             "garantia_meses": meses,
             "mediana_portal": publico.get("median"),
-            "co2": (v.get("co2emissionInGramPerKmWithFallback") or {}).get("raw"),
+            "co2": (v.get("co2emissionInGramPerKmWithFallback") or {}).get("raw") or a["co2"],
             "publicado": d.get("createdTimestampWithOffset"),
             "carroceria": v.get("bodyType"),
         }
@@ -79,6 +79,11 @@ def _anuncio(l, pais, marca):
         if det.get("iconName") == "speedometer":
             mk = re.search(r"(\d+)\s*kW", det.get("data") or "")
             kw = int(mk.group(1)) if mk else None
+    co2 = None
+    for w in l.get("wltpValues") or []:  # en Alemania el listado suele traer el CO2
+        mc = re.search(r"(\d+)\s*g(?:/| )?\s*(?:CO2)?/?km", str(w), re.I)
+        if mc and "co" in str(w).lower():
+            co2 = int(mc.group(1))
     loc = l.get("location") or {}
     imagenes = l.get("images") or []
     version = v.get("modelVersionInput") or v.get("motorTypeName") or ""
@@ -92,5 +97,5 @@ def _anuncio(l, pais, marca):
         kw=kw, combustible=v.get("fuel") or "", electrico=(t.get("fuelType") or "").lower() == "e",
         cambio=v.get("transmission") or "", ciudad=loc.get("city") or "",
         vendedor=(l.get("seller") or {}).get("companyName") or "",
-        imagen=imagenes[0] if imagenes else "", etiqueta=t.get("priceLabel") or "",
+        imagen=imagenes[0] if imagenes else "", etiqueta=t.get("priceLabel") or "", co2=co2,
     )

@@ -58,6 +58,9 @@ def recoger(cfg, rapido, estado):
         except Bloqueado as e:
             estado[nombre] = f"Bloqueado ({e}) · {len(anuncios) - n0} anuncios antes del bloqueo"
             print(f"  ! {nombre} rechaza las peticiones ({e}); se sigue con los demás portales.")
+        except Exception as e:  # un portal que cambia su web no debe tumbar el resto
+            estado[nombre] = f"Error ({type(e).__name__}) · {len(anuncios) - n0} anuncios antes del error"
+            print(f"  ! {nombre} falló: {e!r}; se sigue con los demás portales.")
 
     def autoscout():
         as24 = portales["AutoScout24"] = AutoScout24()
@@ -75,7 +78,7 @@ def recoger(cfg, rapido, estado):
                 print(f"  AutoScout24 {pais} {marca['nombre']:<14} {len(anuncios):>5} acumulados", flush=True)
 
     def cochesnet():
-        cn = CochesNet()
+        cn = portales["coches.net"] = CochesNet()
         for marca in cfg["marcas"]:
             for pagina in range(1, (1 if rapido else port["paginas_cochesnet"]) + 1):
                 lista, n_pag = cn.buscar(marca, busq, pagina)
@@ -98,7 +101,7 @@ def recoger(cfg, rapido, estado):
         portal("coches.net", cochesnet)
     if port.get("autohero"):
         portal("Autohero", autohero)
-    return anuncios, portales.get("AutoScout24")
+    return anuncios, portales
 
 
 def deduplicar(anuncios):
@@ -154,16 +157,28 @@ def main():
     ahora = datetime.now(timezone.utc)
     hoy = ahora.date()
     corte = ahora - timedelta(hours=busq["ventana_horas"])
+    excluidos = [v.lower() for v in op.get("vendedores_excluidos", [])]
+
+    def excluido(a):
+        return any(v in (a["vendedor"] or "").lower() for v in excluidos)
+
+    def iedmt_ok(a):
+        """Alemania: solo coches con 0 % de impuesto de matriculación en España (CO2 ≤ 120 g/km o eléctrico)."""
+        if a["pais"] != "DE" or not imp.get("solo_iedmt_cero"):
+            return True
+        return a["electrico"] or (a["co2"] is not None and analisis.tipo_iedmt(a["co2"], False, 1) == 0)
 
     print("1/4 Leyendo portales...", flush=True)
     estado = {}
-    anuncios, as24 = recoger(cfg, args.rapido, estado)
+    anuncios, portales = recoger(cfg, args.rapido, estado)
     anuncios = deduplicar(anuncios)
     if not anuncios:
         print("No se ha leído ningún anuncio. Se aborta sin tocar el informe.")
         sys.exit(1)
 
-    print(f"2/4 Valorando {len(anuncios)} anuncios...", flush=True)
+    de = [a for a in anuncios if a["pais"] == "DE"]
+    print(f"2/4 Valorando {len(anuncios)} anuncios (CO2 conocido en {sum(a['co2'] is not None for a in de)} "
+          f"de {len(de)} alemanes)...", flush=True)
     mercado = analisis.Mercado(anuncios, hoy)
     hist = cargar_historial()
     autohero_conocido = any(k.startswith("ah:") for k in hist)
@@ -187,32 +202,36 @@ def main():
             continue
         if a["garantia_meses"] is not None and a["garantia_meses"] < op["garantia_meses_minima"]:
             continue
+        if excluido(a) or (a["co2"] is not None and not iedmt_ok(a)):  # el CO2 puede llegar con la ficha
+            continue
         umbral = min_marca.get(a["marca"], op["descuento_minimo"])
         if (mejor is not None and mejor >= umbral - 0.04) or a["etiqueta"] == "top-price":
             a["_prefiltro"] = mejor if mejor is not None else 0
             candidatos.append(a)
 
     candidatos.sort(key=lambda a: -a["_prefiltro"])
-    por_verificar = [a for a in candidatos if a["fuente"] == "AutoScout24"]
-    max_fichas = 15 if args.rapido else op["max_fichas"]
-    print(f"3/4 {len(candidatos)} candidatos; verificando {min(len(por_verificar), max_fichas)} "
-          f"fichas de AutoScout24 (garantía, mediana, CO2)...", flush=True)
-    verificables = set(id(a) for a in por_verificar[:max_fichas])
+    # Fichas a abrir por portal: (cliente, máximo al día)
+    fichas = {"AutoScout24": [portales.get("AutoScout24"), 15 if args.rapido else op["max_fichas"]],
+              "coches.net": [portales.get("coches.net"), 5 if args.rapido else op["max_fichas_cochesnet"]]}
+    print(f"3/4 {len(candidatos)} candidatos; verificando fichas (garantía, vendedor, CO2)...", flush=True)
     oportunidades = []
-    bloqueado_as24 = False
     for a in candidatos:
-        if a["fuente"] == "AutoScout24":
-            if id(a) not in verificables or bloqueado_as24:
+        if a["fuente"] in fichas:
+            cliente, restantes = fichas[a["fuente"]]
+            if not cliente or restantes <= 0:
                 continue
+            fichas[a["fuente"]][1] -= 1
             try:
-                d = as24.detalle(a)
+                d = cliente.detalle(a)
             except Bloqueado:
-                print("  AutoScout24 empezó a rechazar fichas; se sigue con lo verificado.")
-                bloqueado_as24 = True
+                print(f"  {a['fuente']} empezó a rechazar fichas; se sigue con lo verificado.")
+                fichas[a["fuente"]][0] = None
                 continue
             if not d or not d.pop("activo"):
                 continue
             a.update(d)
+        if excluido(a) or not iedmt_ok(a):
+            continue
         if (a["garantia_meses"] or 0) < op["garantia_meses_minima"]:
             continue
         mejor = valorar(a, mercado, imp)

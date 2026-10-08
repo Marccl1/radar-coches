@@ -23,15 +23,23 @@ cochesnet = true               # solo España (tiene protección anti-bots: poca
 autohero = true                # España y Alemania, siempre con 12 meses de garantía
 paginas_mercado = 4            # AutoScout24: páginas de anuncios recientes para valorar el mercado
 paginas_nuevos = 10            # AutoScout24: páginas de anuncios publicados hoy
-paginas_cochesnet = 3          # 35 anuncios por página
+paginas_cochesnet = 1          # 35 anuncios por página (más páginas = antes salta su anti-bots)
 
 [oportunidad]
 descuento_minimo = 0.10        # 10 % por debajo de mercado como mínimo
 garantia_meses_minima = 12     # solo profesionales con garantía de al menos X meses
 max_fichas = 90                # fichas de AutoScout24 a verificar al día (garantía, mediana, CO2)
+max_fichas_cochesnet = 15      # fichas de coches.net al día (concesionario, garantía); pocas por su anti-bots
 max_en_informe = 60
+vendedores_excluidos = ["flexicar"]   # concesionarios que no quieres ver (basta parte del nombre)
+
+[aviso]                        # Telegram (ver README para configurarlo)
+descuento_minimo = 0.12        # solo avisa de coches con al menos este descuento (o ahorro importando)
+max_coches = 5                 # coches por aviso; el resto, en el informe
+avisar_si_no_hay = false       # true = mensaje también los días sin oportunidades
 
 [importacion]                  # para coches de Alemania puestos en España (estimación)
+solo_iedmt_cero = true         # Alemania: solo coches con 0 % de impuesto de matriculación (CO2 ≤ 120 g/km o eléctricos)
 transporte = 900               # camión portacoches DE -> ES
 gestion_itv_placas = 700       # ITV de homologación, gestoría, DGT, placas
 tipo_iedmt_sin_co2 = 0.0475    # tipo de impuesto de matriculación si el anuncio no da CO2

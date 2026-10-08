@@ -6,6 +6,11 @@ Toyota y Mazda de **≤ 55.000 km**, **publicados en las últimas 24 h**, de
 **profesionales con garantía**, que estén claramente por debajo de mercado.
 Publica un informe web con fotos, descuento, coste puesto en España y bajadas de precio.
 
+Filtros especiales:
+- **Alemania**: solo coches que pagarían **0 % de impuesto de matriculación** en España
+  (CO2 ≤ 120 g/km WLTP, o eléctricos). Si el anuncio no indica el CO2, se descarta.
+- **Concesionarios excluidos**: Flexicar (lista editable en `vendedores_excluidos`).
+
 ## Cómo decide qué es una oportunidad
 
 1. **Lee los portales**: anuncios recientes (para conocer el mercado) y los
@@ -62,6 +67,10 @@ Abre `docs/index.html`. Solo necesita Python 3.11+ (sin librerías extra).
 - **Autohero** no publica fecha de anuncio: cuenta como «publicado hoy» el primer
   día que el rastreador lo ve (desde la segunda ejecución).
 - **heycar** ya no opera en Alemania (redirige a un portal británico), por eso no está.
+- **mobile.de** rechaza cualquier acceso automatizado ("Zugriff verweigert"), así que
+  no está incluido. Alternativa: en la app de mobile.de guarda una búsqueda
+  (Händler, ≤ 55.000 km, tus marcas) y activa sus avisos push. Además, buena parte
+  de los concesionarios alemanes publican también en AutoScout24.de.
 - Los costes de importación son **estimaciones** (Hacienda calcula el impuesto con
   sus tablas, no con el precio de compra). Pide presupuesto antes de comprar.
 - Las condiciones de uso de estos portales restringen el acceso automatizado. El

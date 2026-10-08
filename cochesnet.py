@@ -6,6 +6,7 @@ fichas. El portal tiene protección anti-bots: se hacen pocas peticiones, muy
 espaciadas, y se para en cuanto aparece su página de bloqueo.
 """
 import json
+import re
 import urllib.parse
 
 from comun import Cliente, anuncio
@@ -25,13 +26,36 @@ class CochesNet:
             "MaxKms": busq["km_max"], "MinYear": busq["anio_desde"],
             "MinPrice": busq["precio_min"], "MaxPrice": busq["precio_max"], "pg": pagina,
         }
-        html = self.cliente.get(f"{BASE}/{marca['slug']}/segunda-mano/?{urllib.parse.urlencode(params)}")
-        if not html or _INICIO not in html:
-            return [], 0
-        texto, _ = json.JSONDecoder().raw_decode(html, html.index(_INICIO) + len(_INICIO))
-        res = json.loads(texto).get("initialResults") or {}
+        datos = _props(self.cliente.get(f"{BASE}/{marca['slug']}/segunda-mano/?{urllib.parse.urlencode(params)}"))
+        res = (datos or {}).get("initialResults") or {}
         lista = [a for a in (_anuncio(i, marca) for i in res.get("items", [])) if a]
         return lista, res.get("totalPages") or 0
+
+    def detalle(self, a):
+        """Ficha del anuncio: nombre del concesionario, meses de garantía y CO2."""
+        datos = _props(self.cliente.get(a["url"]))
+        if not datos:
+            return None
+        ad = datos.get("ad") or {}
+        dealer = (datos.get("seller") or {}).get("dealer") or {}
+        co2 = re.search(r'"emissions":\s*(\d+)', json.dumps(datos.get("vehicleInfo") or {}))
+        return {
+            "activo": bool(ad),
+            "vendedor": dealer.get("name") or a["vendedor"],
+            "ciudad": (dealer.get("location") or {}).get("city") or a["ciudad"],
+            "garantia_meses": ad.get("warrantyMonths") or (12 if ad.get("hasWarranty") else 0),
+            "co2": int(co2.group(1)) if co2 else None,
+        }
+
+
+def _props(html):
+    if not html or _INICIO not in html:
+        return None
+    try:
+        texto, _ = json.JSONDecoder().raw_decode(html, html.index(_INICIO) + len(_INICIO))
+        return json.loads(texto)
+    except ValueError:  # página cortada
+        return None
 
 
 def _anuncio(i, marca):

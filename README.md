@@ -50,6 +50,26 @@ Todo se ajusta en [`config.toml`](config.toml).
    en Settings → Pages). Guárdalo en el móvil; se actualiza cada día a las 7:30.
 7. **Cambiar filtros**: abre `config.toml` en GitHub, lápiz ✏️, cambia y *Commit*.
 
+## Avisos por Telegram
+
+Tras cada ejecución te llega un mensaje con las oportunidades **nuevas** que superen
+el descuento del aviso (12 % por defecto, en `[aviso]` de `config.toml`): foto,
+precio, descuento, garantía, coste puesto en España y enlace. Nunca repite un coche.
+
+1. **Crea el bot**: en Telegram abre **@BotFather** → `/newbot` → ponle un nombre
+   (p. ej. `Radar de chollos`) y un usuario acabado en `bot` (p. ej. `radar_chollos_mc_bot`).
+   Te dará un **token** como `123456789:AAH...`. No lo compartas con nadie.
+2. **Abre tu bot** (el enlace `t.me/...` que te da BotFather) y pulsa **Iniciar**.
+   Sin esto el bot no puede escribirte.
+3. **Tu id**: abre **@userinfobot**, pulsa **Iniciar** y copia el número de `Id`.
+4. **Guárdalos en GitHub**: en tu repositorio **Settings → Secrets and variables →
+   Actions → New repository secret**, crea dos:
+   - Nombre `TELEGRAM_TOKEN` → valor: el token del paso 1.
+   - Nombre `TELEGRAM_CHAT_ID` → valor: el número del paso 3.
+5. **Prueba**: **Actions → Rastreo diario → Run workflow**, marca
+   **«Solo enviar un mensaje de prueba a Telegram»** → **Run workflow**. En un minuto
+   debe llegarte «✅ Radar de chollos conectado».
+
 ## Ejecutarlo en tu PC
 
 ```

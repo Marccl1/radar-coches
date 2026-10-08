@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: "30 5 * * *"   # 05:30 UTC = 07:30 en verano / 06:30 en invierno (Madrid)
   workflow_dispatch:        # botón "Run workflow" para lanzarlo a mano
+    inputs:
+      prueba_telegram:
+        description: "Solo enviar un mensaje de prueba a Telegram"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -15,7 +20,21 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  prueba-telegram:
+    if: ${{ inputs.prueba_telegram }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python avisar.py --prueba
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
   rastrear:
+    if: ${{ !inputs.prueba_telegram }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     environment:
@@ -28,7 +47,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      # El histórico de precios (para detectar bajadas y anuncios nuevos) vive en la caché
+      # Histórico de precios y coches ya avisados: viven en la caché entre ejecuciones
       - uses: actions/cache/restore@v4
         with:
           path: data
@@ -38,15 +57,21 @@ jobs:
       - name: Rastrear
         run: python rastreador.py
 
-      - uses: actions/cache/save@v4
-        if: success()
-        with:
-          path: data
-          key: historial-${{ github.run_id }}
-
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
           path: docs
       - id: deploy
         uses: actions/deploy-pages@v4
+
+      - name: Avisar por Telegram
+        run: python avisar.py
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: data
+          key: historial-${{ github.run_id }}

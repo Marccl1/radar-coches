@@ -1,0 +1,57 @@
+# ============================================================
+#  Rastreador de oportunidades de coches de segunda mano
+#  Edita este fichero para cambiar qué se busca.
+# ============================================================
+
+[busqueda]
+paises = ["ES", "DE"]          # ES = España, DE = Alemania
+anio_desde = 2018              # primera matriculación desde
+km_max = 150000
+precio_min = 6000
+precio_max = 50000
+paginas_por_busqueda = 10      # 20 anuncios por página (máx. 20). Se leen los más recientes.
+
+# Filtros extra de AutoScout24 (opcional), p. ej.:
+#   gear = "A"   -> solo automático
+#   fuel = "D"   -> diésel ("B" gasolina, "E" eléctrico, "2" híbrido)
+[busqueda.extra]
+
+[oportunidad]
+descuento_minimo = 0.10        # 10 % por debajo de mercado como mínimo
+garantia_meses_minima = 12     # solo profesionales con garantía de al menos X meses
+max_fichas = 90                # fichas de detalle a verificar al día (garantía, mediana, CO2)
+max_en_informe = 60
+
+[importacion]                  # para coches de Alemania puestos en España (estimación)
+transporte = 900               # camión portacoches DE -> ES
+gestion_itv_placas = 700       # ITV de homologación, gestoría, DGT, placas
+tipo_iedmt_sin_co2 = 0.0475    # tipo de impuesto de matriculación si el anuncio no da CO2
+
+# ---- Marcas ------------------------------------------------
+# descuento_minimo por marca opcional (sobrescribe el general)
+
+[[marcas]]
+slug = "audi"
+nombre = "Audi"
+
+[[marcas]]
+slug = "bmw"
+nombre = "BMW"
+
+[[marcas]]
+slug = "mercedes-benz"
+nombre = "Mercedes-Benz"
+
+[[marcas]]
+slug = "volkswagen"
+nombre = "Volkswagen"
+
+[[marcas]]
+slug = "toyota"
+nombre = "Toyota"
+descuento_minimo = 0.15        # solo chollos claros
+
+[[marcas]]
+slug = "mazda"
+nombre = "Mazda"
+descuento_minimo = 0.15

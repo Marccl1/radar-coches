@@ -30,6 +30,9 @@ header p{margin:0;color:var(--muted)}
 .stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
 .stat b{display:block;font-size:22px;font-variant-numeric:tabular-nums}
 .stat span{color:var(--muted);font-size:13px}
+.stat.portales{grid-column:span 2;font-size:13px;display:flex;flex-direction:column;justify-content:center;gap:2px}
+.stat.portales b{display:inline;font-size:12px}
+a.mini{color:inherit}
 .filtros{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0 18px}
 .filtros select,.filtros button,.filtros label{font:inherit;font-size:14px;background:var(--panel);color:var(--ink);
   border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer}
@@ -46,6 +49,7 @@ header p{margin:0;color:var(--muted)}
 .body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:10px;flex:1}
 .titulo{font-weight:650;font-size:16px;line-height:1.3}
 .sub{color:var(--muted);font-size:13px}
+.sub.version{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .precio{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
 .precio b{font-size:24px;font-variant-numeric:tabular-nums}
 .precio s{color:var(--muted)}
@@ -82,6 +86,7 @@ footer li{margin:4px 0}
     <button data-pais="ES" aria-pressed="false">España</button>
     <button data-pais="DE" aria-pressed="false">Alemania</button>
     <select id="marca" aria-label="Marca"><option value="">Todas las marcas</option></select>
+    <select id="fuente" aria-label="Portal"><option value="">Todos los portales</option></select>
     <select id="orden" aria-label="Orden">
       <option value="puntuacion">Mejor oportunidad</option>
       <option value="descuento">Mayor descuento</option>
@@ -101,10 +106,11 @@ footer li{margin:4px 0}
   <footer>
     <p><b>Cómo se calcula</b></p>
     <ul>
-      <li>Solo vendedores profesionales con garantía verificada en la ficha del anuncio.</li>
-      <li>Descuento = media entre el precio esperado por nuestro modelo (antigüedad, km y potencia de ese modelo en ese país) y la mediana de mercado de AutoScout24.</li>
+      <li>Portales: AutoScout24 (España y Alemania), coches.net (España) y Autohero (España y Alemania). Si un coche está en varios, aparece una vez con todos los enlaces.</li>
+      <li>Solo vendedores profesionales con garantía: verificada en la ficha (AutoScout24), indicada en el anuncio (coches.net) o incluida siempre (Autohero, 12 meses).</li>
+      <li>Descuento = media entre el precio esperado por nuestro modelo (antigüedad, km y potencia de ese modelo en ese país, con los anuncios de todos los portales) y el precio de referencia del portal (mediana de AutoScout24 o precio medio de coches.net).</li>
       <li>Coches alemanes: “puesto en España” suma transporte, ITV/gestoría/placas e impuesto de matriculación según CO2 (base aproximada: precio de compra). Es una estimación: pide presupuesto antes de comprar.</li>
-      <li>“Revisar” marca precios demasiado bajos (&gt;35 % por debajo): pueden ser errores, daños no declarados o fraude.</li>
+      <li>“Revisar” marca descuentos o ahorros de importación de más del 35 %: pueden ser errores, daños no declarados, fraude o pocos datos de ese modelo.</li>
     </ul>
   </footer>
 </div>
@@ -125,21 +131,25 @@ document.getElementById('fecha').textContent =
 
 const stats = [
   [D.oportunidades.length, 'oportunidades'],
+  [num(R.publicados_hoy), R.config.solo_publicados_hoy ? `publicados en ${R.config.ventana_horas} h` : 'publicados hoy'],
   [num(R.analizados), 'anuncios analizados'],
   [Object.entries(R.por_pais).map(([p,n]) => p + ' ' + num(n)).join(' · '), 'por país'],
-  [num(R.nuevos), 'anuncios nuevos hoy'],
   [R.modelos_valorados, 'modelos con valoración'],
 ];
-document.getElementById('stats').innerHTML = stats.map(([v,t]) => `<div class="stat"><b>${v}</b><span>${t}</span></div>`).join('');
+document.getElementById('stats').innerHTML = stats.map(([v,t]) => `<div class="stat"><b>${v}</b><span>${t}</span></div>`).join('') +
+  `<div class="stat portales">${Object.entries(R.portales).map(([p,e]) =>
+    `<div><b class="${e.startsWith('OK') ? 'pos' : 'neg'}">●</b> ${esc(p)} <span>${esc(e)}</span></div>`).join('')}</div>`;
 
-const marcas = [...new Set(D.oportunidades.map(o => o.marca))].sort();
-document.getElementById('marca').innerHTML += marcas.map(m => `<option>${esc(m)}</option>`).join('');
+const opciones = (id, valores) => document.getElementById(id).innerHTML +=
+  [...new Set(valores)].sort().map(m => `<option>${esc(m)}</option>`).join('');
+opciones('marca', D.oportunidades.map(o => o.marca));
+opciones('fuente', D.oportunidades.flatMap(o => [o.fuente, ...o.tambien_en.map(t => t.fuente)]));
 
 let pais = '';
 function tarjeta(o){
   const b = [];
-  b.push(`<span class="badge">${o.pais}</span>`);
-  if (o.nuevo) b.push('<span class="badge ok">Nuevo hoy</span>');
+  b.push(`<span class="badge">${o.pais} · ${esc(o.fuente)}</span>`);
+  if (o.publicado_hoy) b.push('<span class="badge ok">Publicado hoy</span>');
   if (o.bajada) b.push(`<span class="badge warn">Bajó ${eur(o.bajada)}</span>`);
   if (o.sospechoso) b.push('<span class="badge bad">Revisar</span>');
   const anio = o.matriculacion.slice(0,4);
@@ -152,17 +162,19 @@ function tarjeta(o){
       (IEDMT ${Math.round(o.importacion.tipo_iedmt*1000)/10} %${o.importacion.co2_estimado ? ' estimado' : ''})<br>
       En España costaría ~<b>${eur(o.esperado_es)}</b> → ${ahorro >= 0 ? 'ahorras' : 'pierdes'} <b>${eur(Math.abs(ahorro))}</b></div>`;
   }
-  const ref = o.mediana_as24 || o.esperado;
+  const ref = o.mediana_portal || o.esperado;
+  const otros = o.tambien_en.length ? ' · también en ' + o.tambien_en.map(t =>
+    `<a class="mini" href="${esc(t.url)}" target="_blank" rel="noopener">${esc(t.fuente)}</a>`).join(', ') : '';
   return `<article class="card">
     <div class="foto">${o.imagen ? `<img loading="lazy" src="${esc(o.imagen)}" alt="">` : ''}
       <div class="badges">${b.join('')}</div>
-      ${o.descuento != null ? `<div class="desc">−${Math.round(o.descuento*100)} %</div>` : ''}</div>
+      <div class="desc">−${Math.round(mejor(o)*100)} %${(o.ahorro_import ?? -1) > (o.descuento ?? -1) ? ' importando' : ''}</div></div>
     <div class="body">
-      <div><div class="titulo">${esc(o.titulo)}</div><div class="sub">${esc(o.grupo)} · ${esc(o.carroceria || '')}</div></div>
+      <div><div class="titulo">${esc(o.titulo)}</div><div class="sub version" title="${esc(o.version)}">${[o.version || o.grupo, o.carroceria].filter(Boolean).map(esc).join(' · ')}</div></div>
       <div class="precio"><b>${eur(o.precio)}</b>${ref ? `<s>${eur(ref)}</s><span class="sub">mercado</span>` : ''}</div>
       <div class="specs">${specs}</div>
       ${imp}
-      <div class="sub">Garantía <b>${o.garantia_meses} meses</b> · en venta desde ${new Date(o.primera_vez).toLocaleDateString('es-ES')}</div>
+      <div class="sub">Garantía <b>${o.garantia_meses} meses</b>${o.bajada ? ` · antes ${eur(o.precio_inicial)}` : ''}${otros}</div>
       <div class="pie"><span>${esc(o.vendedor)}<br>${esc(o.ciudad)} (${PAIS[o.pais]})</span>
         <a href="${esc(o.url)}" target="_blank" rel="noopener">Ver anuncio</a></div>
     </div></article>`;
@@ -170,9 +182,11 @@ function tarjeta(o){
 
 function pintar(){
   const marca = document.getElementById('marca').value;
+  const fuente = document.getElementById('fuente').value;
   const orden = document.getElementById('orden').value;
   const soloBajadas = document.getElementById('bajadas').checked;
-  let l = D.oportunidades.filter(o => (!pais || o.pais === pais) && (!marca || o.marca === marca) && (!soloBajadas || o.bajada));
+  let l = D.oportunidades.filter(o => (!pais || o.pais === pais) && (!marca || o.marca === marca) && (!soloBajadas || o.bajada)
+    && (!fuente || o.fuente === fuente || o.tambien_en.some(t => t.fuente === fuente)));
   const k = {puntuacion: o => -o.puntuacion, descuento: o => -mejor(o), precio: o => o.precio, km: o => o.km, garantia: o => -o.garantia_meses}[orden];
   l.sort((a,b) => k(a) - k(b));
   document.getElementById('cuenta').textContent = l.length + ' resultados';
@@ -184,7 +198,7 @@ document.querySelectorAll('[data-pais]').forEach(btn => btn.addEventListener('cl
   document.querySelectorAll('[data-pais]').forEach(x => x.setAttribute('aria-pressed', x === btn));
   pintar();
 }));
-['marca','orden','bajadas'].forEach(id => document.getElementById(id).addEventListener('change', pintar));
+['marca','fuente','orden','bajadas'].forEach(id => document.getElementById(id).addEventListener('change', pintar));
 pintar();
 
 const C = D.comparativa;

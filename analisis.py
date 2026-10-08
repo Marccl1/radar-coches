@@ -9,11 +9,11 @@ import math
 from collections import defaultdict
 from datetime import date
 
-MIN_MUESTRAS = 15
+MIN_MUESTRAS = 10
 
 
 def clave(a):
-    return (a["marca"], a["grupo"], a["electrico"])
+    return (a["marca"], a["modelo_norm"], a["electrico"])
 
 
 def antiguedad(a, hoy):
@@ -58,6 +58,7 @@ def _predecir(beta, rasgos):
 class Mercado:
     def __init__(self, anuncios, hoy):
         self.hoy = hoy
+        self.anuncios = anuncios
         self.modelos = {}
         grupos = defaultdict(list)
         for a in anuncios:
@@ -98,6 +99,7 @@ class Mercado:
     def comparativa_paises(self, referencia_edad=4, referencia_km=60000):
         """Precio típico de cada modelo (4 años, 60.000 km) en ES y DE."""
         filas = []
+        nombres = {clave(a): a["grupo"] for a in self.anuncios}
         claves = {g[1:] for g in self.modelos}
         for c in claves:
             es, de = self.modelos.get(("ES",) + c), self.modelos.get(("DE",) + c)
@@ -109,7 +111,7 @@ class Mercado:
             if not (1000 < p_es < 500000 and 1000 < p_de < 500000):
                 continue
             filas.append({
-                "modelo": f"{c[0]} {c[1]}" + (" (eléctrico)" if c[2] else ""),
+                "modelo": f"{c[0]} {nombres.get(c, c[1])}" + (" (eléctrico)" if c[2] else ""),
                 "precio_es": round(p_es, -2), "precio_de": round(p_de, -2),
                 "diferencia": (p_es - p_de) / p_es,
                 "n_es": es["n"], "n_de": de["n"],

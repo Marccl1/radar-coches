@@ -6,20 +6,29 @@
 [busqueda]
 paises = ["ES", "DE"]          # ES = España, DE = Alemania
 anio_desde = 2018              # primera matriculación desde
-km_max = 150000
+km_max = 55000
 precio_min = 6000
 precio_max = 50000
-paginas_por_busqueda = 10      # 20 anuncios por página (máx. 20). Se leen los más recientes.
+solo_publicados_hoy = true     # oportunidades solo entre anuncios publicados en las últimas X horas
+ventana_horas = 24             # (el resto de anuncios se usa para calcular el precio de mercado)
 
 # Filtros extra de AutoScout24 (opcional), p. ej.:
 #   gear = "A"   -> solo automático
 #   fuel = "D"   -> diésel ("B" gasolina, "E" eléctrico, "2" híbrido)
 [busqueda.extra]
 
+[portales]
+autoscout24 = true             # España y Alemania
+cochesnet = true               # solo España (tiene protección anti-bots: pocas consultas y muy espaciadas)
+autohero = true                # España y Alemania, siempre con 12 meses de garantía
+paginas_mercado = 4            # AutoScout24: páginas de anuncios recientes para valorar el mercado
+paginas_nuevos = 10            # AutoScout24: páginas de anuncios publicados hoy
+paginas_cochesnet = 3          # 35 anuncios por página
+
 [oportunidad]
 descuento_minimo = 0.10        # 10 % por debajo de mercado como mínimo
 garantia_meses_minima = 12     # solo profesionales con garantía de al menos X meses
-max_fichas = 90                # fichas de detalle a verificar al día (garantía, mediana, CO2)
+max_fichas = 90                # fichas de AutoScout24 a verificar al día (garantía, mediana, CO2)
 max_en_informe = 60
 
 [importacion]                  # para coches de Alemania puestos en España (estimación)
@@ -28,6 +37,7 @@ gestion_itv_placas = 700       # ITV de homologación, gestoría, DGT, placas
 tipo_iedmt_sin_co2 = 0.0475    # tipo de impuesto de matriculación si el anuncio no da CO2
 
 # ---- Marcas ------------------------------------------------
+# slug = nombre de la marca en la URL de los portales
 # descuento_minimo por marca opcional (sobrescribe el general)
 
 [[marcas]]

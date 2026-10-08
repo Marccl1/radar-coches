@@ -1,46 +1,54 @@
 # Radar de chollos — coches de segunda mano ES + DE
 
-Cada mañana rastrea AutoScout24 España y Alemania (Audi, BMW, Mercedes-Benz,
-Volkswagen, Toyota y Mazda), se queda con lo que está claramente por debajo de
-mercado, comprueba que el vendedor es profesional y da garantía, y publica un
-informe web con fotos, descuento, coste puesto en España y bajadas de precio.
+Cada mañana revisa **AutoScout24** (España y Alemania), **coches.net** (España) y
+**Autohero** (España y Alemania) buscando Audi, BMW, Mercedes-Benz, Volkswagen,
+Toyota y Mazda de **≤ 55.000 km**, **publicados en las últimas 24 h**, de
+**profesionales con garantía**, que estén claramente por debajo de mercado.
+Publica un informe web con fotos, descuento, coste puesto en España y bajadas de precio.
 
 ## Cómo decide qué es una oportunidad
 
-1. **Lee los anuncios más recientes** de cada marca en cada país (solo profesionales).
-2. **Valora el mercado**: para cada modelo y país ajusta un modelo de precio
-   (antigüedad, km y potencia) con los anuncios del día.
-3. **Preselecciona** los que están por debajo de lo esperado.
-4. **Abre la ficha** de cada candidato: verifica garantía (≥ 12 meses), coge la
-   mediana de mercado de AutoScout24 y el CO2.
-5. **Descuento final** = media entre nuestro modelo y la mediana de AutoScout24.
-   Para coches alemanes calcula además el **coste puesto en España**
-   (transporte + ITV/gestoría/placas + impuesto de matriculación según CO2) y lo
-   compara con el precio típico en España.
-6. Puntúa: descuento, meses de garantía extra, bajadas de precio y anuncio nuevo.
-   Si algo está > 35 % por debajo lo marca como **Revisar** (posible error o fraude).
+1. **Lee los portales**: anuncios recientes (para conocer el mercado) y los
+   publicados en las últimas 24 h (los candidatos).
+2. **Junta duplicados**: si el mismo coche está en varios portales sale una vez,
+   con todos los enlaces.
+3. **Valora el mercado**: para cada modelo y país ajusta un modelo de precio
+   (antigüedad, km y potencia) con los anuncios de todos los portales.
+4. **Comprueba la garantía** (≥ 12 meses): en la ficha (AutoScout24), en el
+   anuncio (coches.net) o incluida siempre (Autohero).
+5. **Descuento** = media entre nuestro modelo y la referencia del portal
+   (mediana de AutoScout24 o precio medio de coches.net). Para coches alemanes
+   calcula el **coste puesto en España** (transporte + ITV/gestoría/placas +
+   impuesto de matriculación según CO2) y lo compara con el precio en España.
+6. Puntúa y marca como **Revisar** lo que esté > 35 % por debajo (posible error o fraude).
 
-Todo se ajusta en [`config.toml`](config.toml): años, km, precios, marcas,
-descuento mínimo, garantía mínima y costes de importación.
+Todo se ajusta en [`config.toml`](config.toml).
 
-## Ponerlo en marcha en la nube (GitHub, gratis)
+## Paso a paso para ponerlo en la nube (GitHub, gratis)
 
-1. Crea una cuenta en <https://github.com> si no tienes.
-2. Crea un repositorio nuevo **público** (p. ej. `radar-coches`). GitHub Pages
-   gratis requiere repo público; solo contiene el código y tus filtros.
-3. En el repositorio: **Add file → Upload files** y arrastra el contenido de esta
-   carpeta, **incluida la carpeta `.github`** (en Windows, si no la ves, activa
-   "Elementos ocultos" en el Explorador). Commit.
-4. **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-5. **Actions → Rastreo diario → Run workflow** para la primera ejecución
-   (tarda ~10-15 min).
-6. Tu informe queda en `https://<tu-usuario>.github.io/radar-coches/`.
-   Guárdalo en favoritos del móvil. Se actualiza solo cada día a las 07:30.
+1. **Cuenta**: regístrate en <https://github.com/signup>.
+2. **Repositorio**: arriba a la derecha **+ → New repository** · nombre
+   `radar-coches` · **Public** · **Create repository**.
+3. **Subir archivos**:
+   - En el Explorador de Windows activa **Vista → Mostrar → Elementos ocultos**
+     (si no, no verás la carpeta `.github`, que es la que programa la ejecución diaria).
+   - En GitHub pulsa **uploading an existing file**, selecciona todo el contenido
+     de la carpeta `rastreador-coches` y arrástralo. **Commit changes**.
+   - Comprueba que existe `.github/workflows/diario.yml` en el repositorio. Si no:
+     **Add file → Create new file**, nombre `.github/workflows/diario.yml`, pega su
+     contenido y guarda.
+4. **Activar la web**: **Settings → Pages → Source: GitHub Actions**.
+5. **Primera ejecución**: **Actions** (acepta si lo pide) → **Rastreo diario** →
+   **Run workflow**. Tarda ~15-20 min. ✅ verde = funciona; ❌ rojo = abre la
+   ejecución, copia el error y pásamelo.
+6. **Tu informe**: `https://TU-USUARIO.github.io/radar-coches/` (también aparece
+   en Settings → Pages). Guárdalo en el móvil; se actualiza cada día a las 7:30.
+7. **Cambiar filtros**: abre `config.toml` en GitHub, lápiz ✏️, cambia y *Commit*.
 
 ## Ejecutarlo en tu PC
 
 ```
-python rastreador.py            # completo (~10-15 min)
+python rastreador.py            # completo
 python rastreador.py --rapido   # prueba rápida
 ```
 
@@ -48,12 +56,15 @@ Abre `docs/index.html`. Solo necesita Python 3.11+ (sin librerías extra).
 
 ## Avisos
 
-- Los números de importación son **estimaciones**: el impuesto de matriculación
-  real se calcula sobre las tablas de Hacienda, no sobre el precio de compra.
-  Pide presupuesto de transporte y gestoría antes de comprar.
-- Las condiciones de uso de AutoScout24 restringen el acceso automatizado. El
-  rastreador hace pocas peticiones, con pausas, para uso personal, y se detiene
-  si el sitio empieza a rechazarlas. Si un día deja de funcionar desde GitHub
-  (bloqueo de IPs de la nube), ejecútalo desde tu PC.
-- Antes de pagar: informe de historial (Carfax / Carvertical), ITV/TÜV,
-  libro de mantenimiento y nunca señales a vendedores sin verificar.
+- **coches.net** tiene protección anti-bots. El rastreador hace muy pocas
+  consultas, muy espaciadas, y si aparece la página de bloqueo deja ese portal
+  ese día y sigue con los demás (el informe muestra el estado de cada portal).
+- **Autohero** no publica fecha de anuncio: cuenta como «publicado hoy» el primer
+  día que el rastreador lo ve (desde la segunda ejecución).
+- **heycar** ya no opera en Alemania (redirige a un portal británico), por eso no está.
+- Los costes de importación son **estimaciones** (Hacienda calcula el impuesto con
+  sus tablas, no con el precio de compra). Pide presupuesto antes de comprar.
+- Las condiciones de uso de estos portales restringen el acceso automatizado. El
+  rastreador hace pocas peticiones, con pausas, para uso personal.
+- Antes de pagar: informe de historial (Carfax / carVertical), ITV/TÜV, libro de
+  mantenimiento, y nunca adelantes dinero a vendedores sin verificar.

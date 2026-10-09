@@ -1,8 +1,11 @@
 name: Rastreo diario
 
 on:
+  # 17:30 hora de Madrid todo el año. GitHub solo entiende UTC, así que hay dos
+  # horarios y el trabajo "hora" deja seguir solo el que toca según verano/invierno.
   schedule:
-    - cron: "30 5 * * *"   # 05:30 UTC = 07:30 en verano / 06:30 en invierno (Madrid)
+    - cron: "30 15 * * *"   # 15:30 UTC = 17:30 en horario de verano (CEST)
+    - cron: "30 16 * * *"   # 16:30 UTC = 17:30 en horario de invierno (CET)
   workflow_dispatch:        # botón "Run workflow" para lanzarlo a mano
     inputs:
       prueba_telegram:
@@ -20,6 +23,26 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  hora:
+    runs-on: ubuntu-latest
+    outputs:
+      toca: ${{ steps.comprobar.outputs.toca }}
+    steps:
+      - id: comprobar
+        env:
+          EVENTO: ${{ github.event_name }}
+          HORARIO: ${{ github.event.schedule }}
+        run: |
+          desfase=$(TZ=Europe/Madrid date +%z)   # +0200 verano, +0100 invierno
+          if [ "$EVENTO" != "schedule" ] \
+             || { [ "$HORARIO" = "30 15 * * *" ] && [ "$desfase" = "+0200" ]; } \
+             || { [ "$HORARIO" = "30 16 * * *" ] && [ "$desfase" = "+0100" ]; }; then
+            echo "toca=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "toca=false" >> "$GITHUB_OUTPUT"
+            echo "No toca: en Madrid ahora el desfase es $desfase."
+          fi
+
   prueba-telegram:
     if: ${{ inputs.prueba_telegram }}
     runs-on: ubuntu-latest
@@ -34,7 +57,8 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
   rastrear:
-    if: ${{ !inputs.prueba_telegram }}
+    needs: hora
+    if: ${{ needs.hora.outputs.toca == 'true' && !inputs.prueba_telegram }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     environment:
@@ -66,6 +90,13 @@ jobs:
 
       - name: Avisar por Telegram
         run: python avisar.py
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      - name: Avisar del fallo por Telegram
+        if: failure()
+        run: python avisar.py --error "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}

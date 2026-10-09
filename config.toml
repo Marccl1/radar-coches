@@ -36,7 +36,7 @@ vendedores_excluidos = ["flexicar"]   # concesionarios que no quieres ver (basta
 [aviso]                        # Telegram (ver README para configurarlo)
 descuento_minimo = 0.12        # solo avisa de coches con al menos este descuento (o ahorro importando)
 max_coches = 5                 # coches por aviso; el resto, en el informe
-avisar_si_no_hay = false       # true = mensaje también los días sin oportunidades
+avisar_si_no_hay = true        # true = mensaje-resumen también los días sin oportunidades
 
 [importacion]                  # para coches de Alemania puestos en España (estimación)
 solo_iedmt_cero = true         # Alemania: solo coches con 0 % de impuesto de matriculación (CO2 ≤ 120 g/km o eléctricos)

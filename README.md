@@ -1,6 +1,6 @@
 # Radar de chollos — coches de segunda mano ES + DE
 
-Cada mañana revisa **AutoScout24** (España y Alemania), **coches.net** (España) y
+Cada tarde (17:30, hora de España, todo el año) revisa **AutoScout24** (España y Alemania), **coches.net** (España) y
 **Autohero** (España y Alemania) buscando Audi, BMW, Mercedes-Benz, Volkswagen,
 Toyota y Mazda de **≤ 55.000 km**, **publicados en las últimas 24 h**, de
 **profesionales con garantía**, que estén claramente por debajo de mercado.
@@ -47,7 +47,9 @@ Todo se ajusta en [`config.toml`](config.toml).
    **Run workflow**. Tarda ~15-20 min. ✅ verde = funciona; ❌ rojo = abre la
    ejecución, copia el error y pásamelo.
 6. **Tu informe**: `https://TU-USUARIO.github.io/radar-coches/` (también aparece
-   en Settings → Pages). Guárdalo en el móvil; se actualiza cada día a las 7:30.
+   en Settings → Pages). Guárdalo en el móvil; se actualiza cada día a las 17:30 (GitHub
+   puede retrasarlo 10-30 min). Cada día te llega un resumen por Telegram, haya o no
+   oportunidades, y un aviso si el rastreo falla.
 7. **Cambiar filtros**: abre `config.toml` en GitHub, lápiz ✏️, cambia y *Commit*.
 
 ## Avisos por Telegram

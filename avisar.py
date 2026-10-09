@@ -10,6 +10,7 @@ Necesita dos variables de entorno (en GitHub: Settings → Secrets → Actions):
 Uso:
     python avisar.py            # avisa de las oportunidades del día
     python avisar.py --prueba   # manda un mensaje de prueba para comprobar la configuración
+    python avisar.py --error URL  # avisa de que el rastreo ha fallado
 """
 import argparse
 import html
@@ -91,9 +92,25 @@ def texto_coche(o):
     return "\n".join(lineas)
 
 
+def resumen_dia(r, n_informe, minimo, informe):
+    """Mensaje de los días sin novedades: confirma que el rastreo ha corrido y cómo han ido los portales."""
+    lineas = [f"🔍 <b>Rastreo hecho</b>: nada nuevo por encima del {round(minimo * 100)} % hoy."]
+    if r.get("analizados"):
+        lineas.append(f"Analizados {r['analizados']:,} anuncios".replace(",", ".")
+                      + f", {r.get('publicados_hoy', 0)} publicados en las últimas horas.")
+    if n_informe:
+        lineas.append(f"En el informe hay {n_informe} con descuento menor o ya avisadas.")
+    for portal, estado in (r.get("portales") or {}).items():
+        lineas.append(f"{'🟢' if estado.startswith('OK') else '🔴'} {html.escape(portal)}: {html.escape(estado)}")
+    if informe:
+        lineas.append(f'<a href="{informe}">Ver informe</a>')
+    return "\n".join(lineas)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--prueba", action="store_true")
+    ap.add_argument("--error", metavar="URL")
     args = ap.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")
 
@@ -107,6 +124,9 @@ def main():
         ok = tg.mensaje("✅ <b>Radar de chollos</b> conectado. Aquí recibirás las oportunidades del día.")
         print("Mensaje de prueba enviado." if ok else "No se pudo enviar: revisa el token y el chat id.")
         sys.exit(0 if ok else 1)
+    if args.error:
+        tg.mensaje(f'❌ <b>El rastreo de hoy ha fallado.</b>\n<a href="{html.escape(args.error)}">Ver el error en GitHub</a>')
+        return
 
     cfg = tomllib.loads((RAIZ / "config.toml").read_text(encoding="utf-8")).get("aviso", {})
     minimo = cfg.get("descuento_minimo", 0.12)
@@ -121,7 +141,7 @@ def main():
     if not nuevos:
         print("Nada nuevo que avisar.")
         if cfg.get("avisar_si_no_hay"):
-            tg.mensaje("🔍 Hoy no hay oportunidades nuevas." + (f' <a href="{informe}">Informe</a>' if informe else ""))
+            tg.mensaje(resumen_dia(datos.get("resumen") or {}, len(datos["oportunidades"]), minimo, informe))
         return
 
     mostrar = nuevos[:cfg.get("max_coches", 5)]

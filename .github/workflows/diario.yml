@@ -1,15 +1,20 @@
 name: Rastreo diario
 
+# Arranque principal: cron-job.org llama a este workflow a las 17:10 (hora de Madrid)
+# con automatico=true. Las ejecuciones programadas de GitHub llegan a retrasarse
+# horas, así que el "schedule" queda solo de respaldo: si hoy ya hubo un rastreo
+# correcto, no hace nada.
 on:
-  # 17:30 hora de Madrid todo el año. GitHub solo entiende UTC, así que hay dos
-  # horarios y el trabajo "hora" deja seguir solo el que toca según verano/invierno.
   schedule:
-    - cron: "30 15 * * *"   # 15:30 UTC = 17:30 en horario de verano (CEST)
-    - cron: "30 16 * * *"   # 16:30 UTC = 17:30 en horario de invierno (CET)
-  workflow_dispatch:        # botón "Run workflow" para lanzarlo a mano
+    - cron: "0 17 * * *"    # respaldo: 19:00 en verano / 18:00 en invierno (Madrid), o cuando GitHub pueda
+  workflow_dispatch:        # botón "Run workflow" y llamada de cron-job.org
     inputs:
       prueba_telegram:
         description: "Solo enviar un mensaje de prueba a Telegram"
+        type: boolean
+        default: false
+      automatico:
+        description: "Lanzado por cron-job.org (no repite si hoy ya se hizo)"
         type: boolean
         default: false
 
@@ -17,6 +22,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  actions: read
 
 concurrency:
   group: rastreo
@@ -30,17 +36,30 @@ jobs:
     steps:
       - id: comprobar
         env:
+          GH_TOKEN: ${{ github.token }}
           EVENTO: ${{ github.event_name }}
-          HORARIO: ${{ github.event.schedule }}
+          AUTOMATICO: ${{ inputs.automatico }}
         run: |
-          desfase=$(TZ=Europe/Madrid date +%z)   # +0200 verano, +0100 invierno
-          if [ "$EVENTO" != "schedule" ] \
-             || { [ "$HORARIO" = "30 15 * * *" ] && [ "$desfase" = "+0200" ]; } \
-             || { [ "$HORARIO" = "30 16 * * *" ] && [ "$desfase" = "+0100" ]; }; then
-            echo "toca=true" >> "$GITHUB_OUTPUT"
-          else
+          # Lanzado a mano: siempre se ejecuta
+          if [ "$EVENTO" = "workflow_dispatch" ] && [ "$AUTOMATICO" != "true" ]; then
+            echo "toca=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          # Automático o respaldo: solo si hoy no hay ya un rastreo correcto
+          hoy=$(date -u +%F)
+          hecho=""
+          for id in $(gh api -X GET "repos/$GITHUB_REPOSITORY/actions/workflows/diario.yml/runs" \
+                        -f created=">=$hoy" -f per_page=30 --jq '.workflow_runs[].id'); do
+            [ "$id" = "$GITHUB_RUN_ID" ] && continue
+            if gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs" \
+                 --jq '.jobs[] | select(.name=="rastrear" and .conclusion=="success") | .name' | grep -q rastrear; then
+              hecho=$id; break
+            fi
+          done
+          if [ -n "$hecho" ]; then
             echo "toca=false" >> "$GITHUB_OUTPUT"
-            echo "No toca: en Madrid ahora el desfase es $desfase."
+            echo "Hoy ya se rastreó (ejecución $hecho). No se repite."
+          else
+            echo "toca=true" >> "$GITHUB_OUTPUT"
           fi
 
   prueba-telegram:
@@ -71,7 +90,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      # Histórico de precios y coches ya avisados: viven en la caché entre ejecuciones
+      # Histórico de precios, coches avisados y relación contado/anunciado: viven en la caché
       - uses: actions/cache/restore@v4
         with:
           path: data

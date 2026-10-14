@@ -1,6 +1,6 @@
 # Radar de chollos — coches de segunda mano ES + DE
 
-Cada tarde (17:30, hora de España, todo el año) revisa **AutoScout24** (España y Alemania), **coches.net** (España) y
+Cada tarde (arranca a las 17:10, hora de España) revisa **AutoScout24** (España y Alemania), **coches.net** (España) y
 **Autohero** (España y Alemania) buscando Audi, BMW, Mercedes-Benz, Volkswagen,
 Toyota y Mazda de **≤ 55.000 km**, **publicados en las últimas 24 h**, de
 **profesionales con garantía**, que estén claramente por debajo de mercado.
@@ -10,6 +10,11 @@ Filtros especiales:
 - **Alemania**: solo coches que pagarían **0 % de impuesto de matriculación** en España
   (CO2 ≤ 120 g/km WLTP, o eléctricos). Si el anuncio no indica el CO2, se descarta.
 - **Concesionarios excluidos**: Flexicar (lista editable en `vendedores_excluidos`).
+- **Sin Canarias**: se descartan los anuncios de Las Palmas y Santa Cruz de Tenerife.
+- **Siempre precio al contado**: si un concesionario anuncia el precio con
+  financiación obligatoria, se usa el precio al contado de la ficha. Para valorar el
+  mercado se estima con la relación contado/anunciado medida en fichas de cada
+  concesionario (se va afinando cada día).
 
 ## Cómo decide qué es una oportunidad
 
@@ -47,10 +52,43 @@ Todo se ajusta en [`config.toml`](config.toml).
    **Run workflow**. Tarda ~15-20 min. ✅ verde = funciona; ❌ rojo = abre la
    ejecución, copia el error y pásamelo.
 6. **Tu informe**: `https://TU-USUARIO.github.io/radar-coches/` (también aparece
-   en Settings → Pages). Guárdalo en el móvil; se actualiza cada día a las 17:30 (GitHub
-   puede retrasarlo 10-30 min). Cada día te llega un resumen por Telegram, haya o no
+   en Settings → Pages). Guárdalo en el móvil; se actualiza cada tarde hacia las 17:30
+   (con cron-job.org configurado, ver más abajo). Cada día te llega un resumen por Telegram, haya o no
    oportunidades, y un aviso si el rastreo falla.
 7. **Cambiar filtros**: abre `config.toml` en GitHub, lápiz ✏️, cambia y *Commit*.
+
+## Arranque puntual a las 17:10 con cron-job.org
+
+GitHub retrasa a veces horas sus ejecuciones programadas. Para que el aviso llegue
+hacia las 17:30, un servicio gratuito (cron-job.org) arranca el rastreo a las 17:10,
+hora de Madrid (cambia solo con el horario de verano/invierno). La ejecución
+programada de GitHub queda de respaldo y no repite si ya se hizo.
+
+**A. Clave de GitHub (solo puede lanzar este workflow)**
+1. GitHub → tu foto (arriba a la derecha) → **Settings** → **Developer settings**
+   (abajo del todo) → **Personal access tokens → Fine-grained tokens** →
+   **Generate new token**.
+2. *Token name*: `cron-job radar`. *Expiration*: la máxima que te deje (p. ej. 1 año;
+   apúntate renovarla).
+3. *Repository access*: **Only select repositories** → `radar-coches`.
+4. *Permissions → Repository permissions* → **Actions: Read and write**. Nada más.
+5. **Generate token** y copia la clave (`github_pat_...`). Solo se muestra una vez.
+
+**B. Tarea en cron-job.org**
+1. Regístrate gratis en <https://cron-job.org> → **Create cronjob**.
+2. *Title*: `Radar de chollos`.
+   *URL*: `https://api.github.com/repos/TU-USUARIO/radar-coches/actions/workflows/diario.yml/dispatches`
+3. *Execution schedule*: **Every day at 17:10**. Comprueba que la zona horaria
+   (*Time zone*, en la tarea o en tu perfil) es **Europe/Madrid**.
+4. Pestaña **Advanced**:
+   - *Request method*: **POST**
+   - *Headers* (añade tres):
+     - `Accept` → `application/vnd.github+json`
+     - `Authorization` → `Bearer github_pat_...` (tu clave del paso A)
+     - `X-GitHub-Api-Version` → `2022-11-28`
+   - *Request body*: `{"ref":"main","inputs":{"automatico":"true"}}`
+5. **Create**. Pulsa **Test run**: debe responder **204** y en GitHub → *Actions*
+   aparecerá una ejecución nueva.
 
 ## Avisos por Telegram
 

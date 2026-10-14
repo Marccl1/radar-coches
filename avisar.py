@@ -74,7 +74,8 @@ def texto_coche(o):
     importando = (o.get("ahorro_import") or -1) > (o.get("descuento") or -1)
     lineas = [
         f"<b>{e(o['titulo'])}</b> · {o['pais']} · {e(o['fuente'])}",
-        f"💶 <b>{eur(o['precio'])}</b>  (−{round(mejor * 100)} %{' importando' if importando else ''})",
+        f"💶 <b>{eur(o['precio'])}</b> al contado  (−{round(mejor * 100)} %{' importando' if importando else ''})"
+        + (f"\n💳 Anunciado a {eur(o['precio_anunciado'])} con financiación" if o.get("precio_anunciado") else ""),
         f"📅 {o['matriculacion'][:4]} · {o['km']:,} km".replace(",", ".")
         + (f" · {round(o['kw'] * 1.36)} CV" if o.get("kw") else ""),
         f"🛡️ Garantía {o['garantia_meses']} meses · {e(o.get('vendedor') or '')}",

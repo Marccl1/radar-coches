@@ -67,6 +67,10 @@ def anuncio(**campos):
         "vendedor": "", "imagen": "", "publicado": None, "publicado_hoy": None,
         "garantia_meses": None, "mediana_portal": None, "co2": None, "bajada_portal": 0,
         "etiqueta": "",
+        "provincia": "",            # 2 primeras cifras del código postal (ES): 35/38 = Canarias
+        "precio_anunciado": None,   # precio del anuncio si difiere del precio al contado
+        "contado_estimado": False,  # True = precio al contado calculado, aún sin ver la ficha
+        "financiado": False,        # True = el precio del anuncio exige financiar y no se sabe el de contado
     }
     base.update(campos)
     base["modelo_norm"] = modelo_norm(base["grupo"])
@@ -74,6 +78,18 @@ def anuncio(**campos):
         re.search(r"eléctrico|elektro|electric", base["combustible"], re.I)
         and not re.search(r"h[ií]brid", base["combustible"], re.I))
     return base
+
+
+_CONTADO = re.compile(r"(?:precio\s+al\s+contado|precio\s+contado|barpreis)\s*:?\s*([\d.]{4,9})", re.I)
+
+
+def precio_contado_en_texto(texto, precio_anunciado):
+    """'Precio al contado: 59900 euros' en la descripción -> 59900 (si es coherente con el anunciado)."""
+    m = _CONTADO.search(re.sub(r"<[^>]+>", " ", texto or ""))
+    contado = entero(m.group(1)) if m else None
+    if contado and precio_anunciado and 0.8 * precio_anunciado <= contado <= 1.5 * precio_anunciado:
+        return contado
+    return None
 
 
 def entero(texto):

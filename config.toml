@@ -11,6 +11,10 @@ precio_min = 6000
 precio_max = 50000
 solo_publicados_hoy = true     # oportunidades solo entre anuncios publicados en las últimas X horas
 ventana_horas = 24             # (el resto de anuncios se usa para calcular el precio de mercado)
+# Provincias de España que no interesan (2 primeras cifras del código postal / código INE):
+#   35 Las Palmas, 38 Santa Cruz de Tenerife (Canarias: IGIC e impuestos distintos)
+#   Añade "51", "52" para excluir también Ceuta y Melilla (IPSI).
+provincias_excluidas = ["35", "38"]
 
 # Filtros extra de AutoScout24 (opcional), p. ej.:
 #   gear = "A"   -> solo automático
@@ -30,6 +34,7 @@ descuento_minimo = 0.10        # 10 % por debajo de mercado como mínimo
 garantia_meses_minima = 12     # solo profesionales con garantía de al menos X meses
 max_fichas = 90                # fichas de AutoScout24 a verificar al día (garantía, mediana, CO2)
 max_fichas_cochesnet = 15      # fichas de coches.net al día (concesionario, garantía); pocas por su anti-bots
+muestra_contado = 15           # fichas al azar de AutoScout24 España para medir precio al contado vs anunciado
 max_en_informe = 60
 vendedores_excluidos = ["flexicar"]   # concesionarios que no quieres ver (basta parte del nombre)
 

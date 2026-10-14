@@ -39,8 +39,12 @@ class CochesNet:
         ad = datos.get("ad") or {}
         dealer = (datos.get("seller") or {}).get("dealer") or {}
         co2 = re.search(r'"emissions":\s*(\d+)', json.dumps(datos.get("vehicleInfo") or {}))
+        anunciado = a.get("precio_anunciado") or a["precio"]
+        contado = (datos.get("financingData") or {}).get("cashPrice")
         return {
             "activo": bool(ad),
+            "precio_listado": anunciado,
+            "precio_contado": int(contado) if contado else anunciado,
             "vendedor": dealer.get("name") or a["vendedor"],
             "ciudad": (dealer.get("location") or {}).get("city") or a["ciudad"],
             "garantia_meses": ad.get("warrantyMonths") or (12 if ad.get("hasWarranty") else 0),
@@ -74,6 +78,8 @@ def _anuncio(i, marca):
         matriculacion=f"{int(i['year'])}-07-01",
         kw=round(hp / 1.36) if hp else None, combustible=i.get("fuelType") or "",
         ciudad=loc.get("cityLiteral") or loc.get("mainProvince") or "",
+        provincia=f"{int(i.get('provinceId') or loc.get('mainProvinceId') or 0):02d}",  # código INE
+        financiado=bool(i.get("isFinanced")),  # el precio exige financiar; el de contado está en la ficha
         vendedor="Profesional", imagen=i.get("imgUrl") or i.get("img") or "",
         publicado=i.get("publicationDate"),
         garantia_meses=12 if i.get("hasWarranty") else 0,  # 12 = mínimo legal de un profesional

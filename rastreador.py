@@ -20,9 +20,11 @@ from autohero import Autohero
 from autoscout import AutoScout24
 from cochesnet import CochesNet
 from comun import Bloqueado
+from contado import Contado
 
 RAIZ = Path(__file__).parent
 HISTORIAL = RAIZ / "data" / "historial.json.gz"
+CONTADO = RAIZ / "data" / "contado.json"
 SALIDA = RAIZ / "docs"
 DIAS_HISTORIAL = 45
 MIN_MUESTRAS_IMPORT = 20  # anuncios comparables en España para fiarse del ahorro de importar
@@ -56,6 +58,7 @@ def recoger(cfg, rapido, estado):
             tarea()
             estado[nombre] = f"OK · {len(anuncios) - n0} anuncios"
         except Bloqueado as e:
+            portales.pop(nombre, None)  # ni fichas ni más peticiones a este portal hoy
             estado[nombre] = f"Bloqueado ({e}) · {len(anuncios) - n0} anuncios antes del bloqueo"
             print(f"  ! {nombre} rechaza las peticiones ({e}); se sigue con los demás portales.")
         except Exception as e:  # un portal que cambia su web no debe tumbar el resto
@@ -105,7 +108,8 @@ def recoger(cfg, rapido, estado):
 
 
 def deduplicar(anuncios):
-    """Mismo id -> uno. Mismo coche en varios portales (marca, modelo, precio, km) -> uno, con enlaces."""
+    """Mismo id -> uno. Mismo coche (marca, modelo, precio, km exactos) en varios portales o
+    sedes del mismo concesionario -> uno, con los demás enlaces."""
     por_id = {}
     for a in anuncios:
         previo = por_id.get(a["id"])
@@ -115,10 +119,10 @@ def deduplicar(anuncios):
             por_id[a["id"]] = a
     unicos, huellas = [], {}
     for a in por_id.values():
-        huella = (a["marca"], a["modelo_norm"], a["precio"], round(a["km"], -2))
+        huella = (a["marca"], a["modelo_norm"], a["precio"], a["km"])
         a["tambien_en"] = []
         otro = huellas.get(huella)
-        if otro and otro["fuente"] != a["fuente"]:
+        if otro and a["km"] > 1000:  # con muy pocos km (km 0) hay coches idénticos de verdad
             otro["tambien_en"].append({"fuente": a["fuente"], "url": a["url"]})
             otro["publicado_hoy"] = otro["publicado_hoy"] or a["publicado_hoy"]
             continue
@@ -172,23 +176,49 @@ def main():
     estado = {}
     anuncios, portales = recoger(cfg, args.rapido, estado)
     anuncios = deduplicar(anuncios)
+    provincias_fuera = set(busq.get("provincias_excluidas", []))
+    n0 = len(anuncios)
+    anuncios = [a for a in anuncios if not (a["pais"] == "ES" and a["provincia"] in provincias_fuera)]
+    print(f"  {n0 - len(anuncios)} anuncios descartados por provincia (Canarias...)", flush=True)
     if not anuncios:
         print("No se ha leído ningún anuncio. Se aborta sin tocar el informe.")
         sys.exit(1)
 
+    # Precio al contado en AutoScout24 España (ver contado.py)
+    contado = Contado(CONTADO)
+    as24 = portales.get("AutoScout24")
+    as24_es = [a for a in anuncios if a["fuente"] == "AutoScout24" and a["pais"] == "ES"]
+    if as24 and as24_es:
+        muestra = contado.muestra(as24_es, 4 if args.rapido else op["muestra_contado"], hoy.isoformat())
+        print(f"  Midiendo el precio al contado en {len(muestra)} fichas de AutoScout24 España...", flush=True)
+        for a in muestra:
+            try:
+                d = as24.detalle(a)
+            except Bloqueado:
+                break
+            if d:
+                a["_ficha"] = d
+                contado.aprender(a["vendedor"], d["precio_listado"], d["precio_contado"])
+        for a in as24_es:
+            contado.aplicar(a)
+        print(f"  Contado/anunciado: {contado.factor():.3f} de media "
+              f"({len(contado.vendedores)} concesionarios medidos)", flush=True)
+
     de = [a for a in anuncios if a["pais"] == "DE"]
     print(f"2/4 Valorando {len(anuncios)} anuncios (CO2 conocido en {sum(a['co2'] is not None for a in de)} "
           f"de {len(de)} alemanes)...", flush=True)
-    mercado = analisis.Mercado(anuncios, hoy)
+    # El mercado se calcula solo con precios al contado (conocidos o estimados)
+    mercado = analisis.Mercado([a for a in anuncios if not a["financiado"]], hoy)
     hist = cargar_historial()
     autohero_conocido = any(k.startswith("ah:") for k in hist)
     candidatos = []
     for a in anuncios:
         h = hist.get(a["id"])
+        anunciado = a["precio_anunciado"] or a["precio"]  # las bajadas se miden sobre el precio del anuncio
         a["nuevo"] = h is None
         a["primera_vez"] = h["desde"] if h else hoy.isoformat()
-        a["precio_inicial"] = h["p0"] if h else a["precio"] + a["bajada_portal"]
-        a["bajada"] = max(0, a["precio_inicial"] - a["precio"])
+        a["precio_inicial"] = h["p0"] if h else anunciado + a["bajada_portal"]
+        a["bajada"] = max(0, a["precio_inicial"] - anunciado)
         hist[a["id"]] = {"desde": a["primera_vez"], "p0": a["precio_inicial"], "visto": hoy.isoformat()}
 
         # ¿publicado en la ventana de hoy?
@@ -217,19 +247,32 @@ def main():
     oportunidades = []
     for a in candidatos:
         if a["fuente"] in fichas:
-            cliente, restantes = fichas[a["fuente"]]
-            if not cliente or restantes <= 0:
-                continue
-            fichas[a["fuente"]][1] -= 1
-            try:
-                d = cliente.detalle(a)
-            except Bloqueado:
-                print(f"  {a['fuente']} empezó a rechazar fichas; se sigue con lo verificado.")
-                fichas[a["fuente"]][0] = None
-                continue
+            d = a.pop("_ficha", None)
+            if d is None:
+                cliente, restantes = fichas[a["fuente"]]
+                if not cliente or restantes <= 0:
+                    continue
+                fichas[a["fuente"]][1] -= 1
+                try:
+                    d = cliente.detalle(a)
+                except Bloqueado:
+                    print(f"  {a['fuente']} empezó a rechazar fichas; se sigue con lo verificado.")
+                    fichas[a["fuente"]][0] = None
+                    continue
             if not d or not d.pop("activo"):
                 continue
+            listado, al_contado = d.pop("precio_listado"), d.pop("precio_contado")
             a.update(d)
+            # Precio al contado exacto de la ficha
+            if a["fuente"] == "AutoScout24" and a["pais"] == "ES":
+                contado.aprender(a["vendedor"], listado, al_contado)
+                if a["mediana_portal"]:  # la mediana de AutoScout24 se calcula con precios anunciados
+                    a["mediana_portal"] = round(a["mediana_portal"] * contado.factor())
+            a["precio"] = al_contado
+            a["precio_anunciado"] = listado if listado != al_contado else None
+            a["contado_estimado"] = a["financiado"] = False
+        if a["financiado"]:
+            continue
         if excluido(a) or not iedmt_ok(a):
             continue
         if (a["garantia_meses"] or 0) < op["garantia_meses_minima"]:
@@ -254,6 +297,7 @@ def main():
 
     print("4/4 Generando informe...", flush=True)
     n_hist = guardar_historial(hist, hoy)
+    contado.guardar()
     resumen = {
         "generado": ahora.isoformat(timespec="minutes"),
         "analizados": len(anuncios),

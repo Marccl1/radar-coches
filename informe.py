@@ -110,6 +110,8 @@ footer li{margin:4px 0}
       <li>Solo vendedores profesionales con garantía: verificada en la ficha (AutoScout24), indicada en el anuncio (coches.net) o incluida siempre (Autohero, 12 meses).</li>
       <li>Descuento = media entre el precio esperado por nuestro modelo (antigüedad, km y potencia de ese modelo en ese país, con los anuncios de todos los portales) y el precio de referencia del portal (mediana de AutoScout24 o precio medio de coches.net).</li>
       <li>Coches alemanes: “puesto en España” suma transporte, ITV/gestoría/placas e impuesto de matriculación según CO2 (base aproximada: precio de compra). Es una estimación: pide presupuesto antes de comprar.</li>
+      <li>Todo se compara con <b>precio al contado</b>. Si un concesionario anuncia el precio con financiación, se usa el precio al contado de la ficha; para valorar el mercado se estima con lo medido en fichas de ese concesionario.</li>
+      <li>Se excluyen los anuncios de Canarias (régimen fiscal distinto).</li>
       <li>“Revisar” marca descuentos o ahorros de importación de más del 35 %: pueden ser errores, daños no declarados, fraude o pocos datos de ese modelo.</li>
     </ul>
   </footer>
@@ -164,17 +166,18 @@ function tarjeta(o){
   }
   const ref = o.mediana_portal || o.esperado;
   const otros = o.tambien_en.length ? ' · también en ' + o.tambien_en.map(t =>
-    `<a class="mini" href="${esc(t.url)}" target="_blank" rel="noopener">${esc(t.fuente)}</a>`).join(', ') : '';
+    `<a class="mini" href="${esc(t.url)}" target="_blank" rel="noopener">${t.fuente === o.fuente ? 'otro anuncio' : esc(t.fuente)}</a>`).join(', ') : '';
   return `<article class="card">
     <div class="foto">${o.imagen ? `<img loading="lazy" src="${esc(o.imagen)}" alt="">` : ''}
       <div class="badges">${b.join('')}</div>
       <div class="desc">−${Math.round(mejor(o)*100)} %${(o.ahorro_import ?? -1) > (o.descuento ?? -1) ? ' importando' : ''}</div></div>
     <div class="body">
       <div><div class="titulo">${esc(o.titulo)}</div><div class="sub version" title="${esc(o.version)}">${[o.version || o.grupo, o.carroceria].filter(Boolean).map(esc).join(' · ')}</div></div>
-      <div class="precio"><b>${eur(o.precio)}</b>${ref ? `<s>${eur(ref)}</s><span class="sub">mercado</span>` : ''}</div>
+      <div class="precio"><b>${eur(o.precio)}</b><span class="sub">al contado</span>${ref ? `<s>${eur(ref)}</s><span class="sub">mercado</span>` : ''}</div>
+      ${o.precio_anunciado ? `<div class="sub">Anunciado a ${eur(o.precio_anunciado)} con financiación obligatoria</div>` : ''}
       <div class="specs">${specs}</div>
       ${imp}
-      <div class="sub">Garantía <b>${o.garantia_meses} meses</b>${o.bajada ? ` · antes ${eur(o.precio_inicial)}` : ''}${otros}</div>
+      <div class="sub">Garantía <b>${o.garantia_meses} meses</b>${otros}</div>
       <div class="pie"><span>${esc(o.vendedor)}<br>${esc(o.ciudad)} (${PAIS[o.pais]})</span>
         <a href="${esc(o.url)}" target="_blank" rel="noopener">Ver anuncio</a></div>
     </div></article>`;

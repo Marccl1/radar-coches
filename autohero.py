@@ -39,9 +39,14 @@ def _anuncio(m, pais, marca):
     textos = [H.unescape(t).strip() for t in re.sub(r"<[^>]+>", "|", tarjeta).split("|")]
     textos = [t for t in textos if t and t != "•"]
     precio = entero(sel.get("price"))
+    contado = None
     for i, t in enumerate(textos[:-1]):
         if t in _CONTADO:
-            precio = entero(textos[i + 1]) or precio
+            contado = entero(textos[i + 1])
+    if contado:
+        precio = contado
+    elif any("/mes" in t for t in textos):
+        return None  # precio destacado financiado y sin precio al contado: no sirve para comparar
     anio = next((i for i, t in enumerate(textos) if re.fullmatch(r"(19|20)\d\d", t)), None)
     km = next((entero(t) for t in textos if re.fullmatch(r"[\d.]+ km", t)), None)
     if anio is None or km is None:

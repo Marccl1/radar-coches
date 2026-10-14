@@ -7,7 +7,7 @@ import re
 import urllib.parse
 from datetime import date
 
-from comun import Cliente, anuncio, entero
+from comun import Cliente, anuncio, entero, precio_contado_en_texto
 
 NOMBRE = "AutoScout24"
 DOMINIOS = {"ES": "https://www.autoscout24.es", "DE": "https://www.autoscout24.de"}
@@ -56,8 +56,13 @@ class AutoScout24:
             meses = int(m.group())
         else:
             meses = 12 if d.get("warrantyExists") else 0
+        # En España muchos concesionarios anuncian el precio financiado y ponen
+        # "Precio al contado: X euros" al principio de la descripción.
+        anunciado = publico.get("priceRaw") or a.get("precio_anunciado") or a["precio"]
         return {
             "activo": d.get("status", "Active") == "Active",
+            "precio_listado": anunciado,
+            "precio_contado": precio_contado_en_texto(d.get("description"), anunciado) or anunciado,
             "garantia_meses": meses,
             "mediana_portal": publico.get("median"),
             "co2": (v.get("co2emissionInGramPerKmWithFallback") or {}).get("raw") or a["co2"],
@@ -96,6 +101,8 @@ def _anuncio(l, pais, marca):
         matriculacion=date(int(m.group(2)), int(m.group(1)), 15).isoformat(),
         kw=kw, combustible=v.get("fuel") or "", electrico=(t.get("fuelType") or "").lower() == "e",
         cambio=v.get("transmission") or "", ciudad=loc.get("city") or "",
+        provincia=(loc.get("zip") or "")[:2] if pais == "ES" else "",
+        financiado=bool((l.get("price") or {}).get("isConditionalPrice")),
         vendedor=(l.get("seller") or {}).get("companyName") or "",
         imagen=imagenes[0] if imagenes else "", etiqueta=t.get("priceLabel") or "", co2=co2,
     )

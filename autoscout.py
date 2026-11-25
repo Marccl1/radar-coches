@@ -86,8 +86,10 @@ def _anuncio(l, pais, marca):
             kw = int(mk.group(1)) if mk else None
     co2 = None
     for w in l.get("wltpValues") or []:  # en Alemania el listado suele traer el CO2
-        mc = re.search(r"(\d+)\s*g(?:/| )?\s*(?:CO2)?/?km", str(w), re.I)
-        if mc and "co" in str(w).lower():
+        # "g/km" solo aparece en las emisiones de CO2 (el consumo va en l/100 km o kWh/100 km),
+        # así que no hace falta que el texto diga "CO2" (en alemán a menudo no lo dice).
+        mc = re.search(r"(\d+)\s*g\s*(?:CO2|CO₂)?\s*/\s*km", str(w), re.I)
+        if mc:
             co2 = int(mc.group(1))
     loc = l.get("location") or {}
     imagenes = l.get("images") or []

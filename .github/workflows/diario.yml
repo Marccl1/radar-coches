@@ -79,14 +79,11 @@ jobs:
     needs: hora
     if: ${{ needs.hora.outputs.toca == 'true' && !inputs.prueba_telegram }}
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+    timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -100,13 +97,11 @@ jobs:
       - name: Rastrear
         run: python rastreador.py
 
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: docs
-      - id: deploy
-        uses: actions/deploy-pages@v4
 
+      # El aviso ya no depende de que GitHub Pages publique bien
       - name: Avisar por Telegram
         run: python avisar.py
         env:
@@ -125,3 +120,22 @@ jobs:
         with:
           path: data
           key: historial-${{ github.run_id }}
+
+  # Publicar la web en un job aparte (patrón oficial de GitHub Pages) y con reintento:
+  # desde el 22-nov deploy-pages a veces no encontraba el artefacto subido en el mismo job.
+  publicar:
+    needs: rastrear
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url || steps.deploy2.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v6
+      - id: deploy
+        uses: actions/deploy-pages@v5
+        continue-on-error: true
+      - if: steps.deploy.outcome == 'failure'
+        run: sleep 60
+      - id: deploy2
+        if: steps.deploy.outcome == 'failure'
+        uses: actions/deploy-pages@v5

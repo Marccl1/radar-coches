@@ -23,7 +23,9 @@ Filtros especiales:
 2. **Junta duplicados**: si el mismo coche está en varios portales sale una vez,
    con todos los enlaces.
 3. **Valora el mercado**: para cada modelo y país ajusta un modelo de precio
-   (antigüedad, km y potencia) con los anuncios de todos los portales.
+   (antigüedad, km y potencia) con los anuncios de todos los portales de hoy
+   **y los vistos en los últimos 30 días** (así casi todos los modelos tienen
+   muestra suficiente y la comparación Alemania → España funciona).
 4. **Comprueba la garantía** (≥ 12 meses): en la ficha (AutoScout24), en el
    anuncio (coches.net) o incluida siempre (Autohero).
 5. **Descuento** = media entre nuestro modelo y la referencia del portal

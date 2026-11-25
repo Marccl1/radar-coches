@@ -27,6 +27,7 @@ HISTORIAL = RAIZ / "data" / "historial.json.gz"
 CONTADO = RAIZ / "data" / "contado.json"
 SALIDA = RAIZ / "docs"
 DIAS_HISTORIAL = 45
+DIAS_MERCADO = 30         # anuncios vistos en los últimos X días también cuentan para valorar el mercado
 MIN_MUESTRAS_IMPORT = 20  # anuncios comparables en España para fiarse del ahorro de importar
 
 
@@ -35,6 +36,31 @@ def cargar_historial():
         with gzip.open(HISTORIAL, "rt", encoding="utf-8") as f:
             return json.load(f)
     return {}
+
+
+def rasgos_mercado(a):
+    """Lo mínimo de un anuncio para reconstruirlo al valorar el mercado otro día."""
+    return [a["pais"], a["marca"], a["modelo_norm"], int(a["electrico"]), a["precio"], a["km"],
+            a["matriculacion"], a["kw"], a["grupo"]]
+
+
+def mercado_historico(hist, hoy, ids_hoy):
+    """Anuncios de días anteriores (no vistos hoy) con su último precio al contado conocido.
+
+    Con solo los anuncios del día cada modelo tiene muy pocos ejemplos y muchos coches se
+    quedan sin precio de mercado; con 30 días la muestra se multiplica.
+    """
+    limite = (hoy - timedelta(days=DIAS_MERCADO)).isoformat()
+    previos = []
+    for k, v in hist.items():
+        m = v.get("m")
+        if not m or k in ids_hoy or v["visto"] < limite:
+            continue
+        pais, marca, modelo_norm, electrico, precio, km, matric, kw, grupo = m
+        previos.append({"pais": pais, "marca": marca, "modelo_norm": modelo_norm,
+                        "electrico": bool(electrico), "precio": precio, "km": km,
+                        "matriculacion": matric, "kw": kw, "grupo": grupo})
+    return previos
 
 
 def guardar_historial(hist, hoy):
@@ -207,9 +233,14 @@ def main():
     de = [a for a in anuncios if a["pais"] == "DE"]
     print(f"2/4 Valorando {len(anuncios)} anuncios (CO2 conocido en {sum(a['co2'] is not None for a in de)} "
           f"de {len(de)} alemanes)...", flush=True)
-    # El mercado se calcula solo con precios al contado (conocidos o estimados)
-    mercado = analisis.Mercado([a for a in anuncios if not a["financiado"]], hoy)
+    # El mercado se calcula solo con precios al contado (conocidos o estimados):
+    # los anuncios de hoy + los vistos en los últimos DIAS_MERCADO días.
     hist = cargar_historial()
+    hoy_mercado = [a for a in anuncios if not a["financiado"]]
+    previos = mercado_historico(hist, hoy, {a["id"] for a in anuncios})
+    mercado = analisis.Mercado(hoy_mercado + previos, hoy)
+    print(f"  Mercado: {len(hoy_mercado)} anuncios de hoy + {len(previos)} de días anteriores "
+          f"-> {len(mercado.modelos)} modelos con precio de referencia", flush=True)
     autohero_conocido = any(k.startswith("ah:") for k in hist)
     candidatos = []
     for a in anuncios:
@@ -220,6 +251,8 @@ def main():
         a["precio_inicial"] = h["p0"] if h else anunciado + a["bajada_portal"]
         a["bajada"] = max(0, a["precio_inicial"] - anunciado)
         hist[a["id"]] = {"desde": a["primera_vez"], "p0": a["precio_inicial"], "visto": hoy.isoformat()}
+        if not a["financiado"]:
+            hist[a["id"]]["m"] = rasgos_mercado(a)
 
         # ¿publicado en la ventana de hoy?
         if a["publicado"]:

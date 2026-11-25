@@ -23,16 +23,16 @@ provincias_excluidas = ["35", "38"]
 
 [portales]
 autoscout24 = true             # España y Alemania
-cochesnet = true               # solo España (tiene protección anti-bots: pocas consultas y muy espaciadas)
+cochesnet = false              # solo España. Desactivado: desde GitHub su anti-bots lo bloquea siempre (0 anuncios cada día)
 autohero = true                # España y Alemania, siempre con 12 meses de garantía
 paginas_mercado = 4            # AutoScout24: páginas de anuncios recientes para valorar el mercado
-paginas_nuevos = 10            # AutoScout24: páginas de anuncios publicados hoy
+paginas_nuevos = 20            # AutoScout24: páginas de anuncios publicados hoy (20 = máximo del portal; con 10 se cortaba en 200 por marca)
 paginas_cochesnet = 1          # 35 anuncios por página (más páginas = antes salta su anti-bots)
 
 [oportunidad]
 descuento_minimo = 0.10        # 10 % por debajo de mercado como mínimo
 garantia_meses_minima = 12     # solo profesionales con garantía de al menos X meses
-max_fichas = 90                # fichas de AutoScout24 a verificar al día (garantía, mediana, CO2)
+max_fichas = 200               # fichas de AutoScout24 a verificar al día (garantía, mediana, CO2); con 90 quedaban candidatos sin mirar
 max_fichas_cochesnet = 15      # fichas de coches.net al día (concesionario, garantía); pocas por su anti-bots
 muestra_contado = 15           # fichas al azar de AutoScout24 España para medir precio al contado vs anunciado
 max_en_informe = 60
